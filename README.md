@@ -1,25 +1,11 @@
 # drp-payment-api
 
-> payment bounded context: service API
+Payment HTTP API (**Java 21**, Anexo J.1.2). **Hexagonal:** `co.corhuila.drp.payment.domain` has no Spring/JPA/HTTP imports. DDL lives in [`drp-payment-db`](https://github.com/code-corhuila/drp-payment-db). Engine: [`drp-infra-postgres`](https://github.com/code-corhuila/drp-infra-postgres).
 
-Part of the **SpaceHub (Distributed Reservation Platform)** distributed system — team `distributed-reservation-platform`, Grupo 1.
-Governance and documentation live in [`drp-docs`](https://github.com/code-corhuila/drp-docs).
+This increment is the **Payment aggregate + Money VO** (`amountCents`, unique `idempotencyKey`, states `PENDING | CONFIRMED | FAILED`). HTTP adapters come in a later `feat/`.
 
-## Branching
-
-Three permanent branches. **None of them accepts a direct commit** — you enter through a child
-branch and leave through a Pull Request.
-
-```
-develop  <--PR--  feat/... fix/... chore/...
-qa       <--PR--  qa/...
-main     <--PR--  release/...  hotfix/...
+```bash
+mvn -B test
 ```
 
-Promotion happens **by re-application** (`git cherry-pick -x`), never by merging one permanent
-branch into another: `merge develop -> qa` and `merge qa -> main` do not exist in this model.
-
-`main` requires **1 approval from `ariel5253`**. On `develop` and `qa` the team sets its own review
-rule.
-
-Full policy: `00-governance/branching-policy.md` in `drp-docs`.
+Child of `develop` named `feat/…`. Promote with `cherry-pick -x`.
