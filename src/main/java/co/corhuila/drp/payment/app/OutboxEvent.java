@@ -18,4 +18,18 @@ public record OutboxEvent(
   public static final String PAYMENT_FAILED = "PaymentFailed";
   public static final String TOPIC_CONFIRMED = "payment.confirmed";
   public static final String TOPIC_FAILED = "payment.failed";
+
+  public OutboxEvent publishedCopy() {
+    return new OutboxEvent(
+        eventId,
+        eventType,
+        aggregateId,
+        aggregateType,
+        topic,
+        occurredAt,
+        version,
+        payloadJson,
+        correlationId,
+        true);
+  }
 }

@@ -52,6 +52,7 @@ class ChargesTest {
     assertEquals(PaymentState.PENDING, got.payment().state());
     assertEquals(1, outbox.unpublished().size());
     assertEquals(OutboxEvent.PAYMENT_CONFIRMED, outbox.unpublished().getFirst().eventType());
+    assertTrue(outbox.unpublished().getFirst().payloadJson().contains("\"userId\":\"" + MEMBER + "\""));
     assertEquals(PaymentState.CONFIRMED, charges.get(new Principal(MEMBER, "USER"), got.payment().id()).state());
   }
 

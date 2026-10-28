@@ -6,4 +6,6 @@ public interface Outbox {
   void append(OutboxEvent event);
 
   List<OutboxEvent> unpublished();
+
+  void markPublished(String eventId);
 }

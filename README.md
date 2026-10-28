@@ -2,7 +2,7 @@
 
 Payment HTTP API (**Java 21**, course `api-java` / Spring Boot). **Hexagonal:** `co.corhuila.drp.payment.domain` has no Spring/JPA/HTTP imports. DDL lives in [`drp-payment-db`](https://github.com/code-corhuila/drp-payment-db). Engine: [`drp-infra-postgres`](https://github.com/code-corhuila/drp-infra-postgres).
 
-Walking HTTP for E-15…E-17 (`:8084`): lists `{data, meta}`, create with `Idempotency-Key` returns **201 `PENDING`**, replay is **200**. The MVP provider confirms immediately and appends `PaymentConfirmed` to an **in-memory outbox** in the same use case (D-C14: this service never `POST`s a reservation confirm). RS256 against identity JWKS. Reservation lookup is HTTP to `drp-reservation-api` when `RESERVATION_API_URL` is set; otherwise an in-memory catalog (tests). Publisher + `payment.outbox` Flyway come with Postgres.
+Walking HTTP for E-15…E-17 (`:8084`): lists `{data, meta}`, create with `Idempotency-Key` returns **201 `PENDING`**, replay is **200**. The MVP provider confirms immediately and appends `PaymentConfirmed` to an **in-memory outbox** in the same use case (D-C14: this service never `POST`s a reservation confirm). After the write, an **outbox relay** POSTs unpublished rows to `drp-reservation-api` `POST /internal/events` (required) and, when `NOTIFICATION_API_URL` is set, also to `drp-notification-api` (best-effort, BR-006). Neither hop is on the gateway. The payload includes `userId` so notification can write the inbox row. RS256 against identity JWKS. Reservation lookup is HTTP to E-13 when the URL is set; otherwise an in-memory catalog (tests). AMQP + Flyway `payment.outbox` replace the hop later.
 
 ```bash
 mvn -B test

@@ -28,4 +28,14 @@ public final class MemoryOutbox implements Outbox {
     }
     return out;
   }
+
+  @Override
+  public void markPublished(String eventId) {
+    for (int i = 0; i < events.size(); i++) {
+      OutboxEvent event = events.get(i);
+      if (event.eventId().equals(eventId)) {
+        events.set(i, event.publishedCopy());
+      }
+    }
+  }
 }

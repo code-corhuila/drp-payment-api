@@ -5,9 +5,14 @@ import co.corhuila.drp.payment.adapters.memory.MemoryOutbox;
 import co.corhuila.drp.payment.adapters.memory.MemoryPayments;
 import co.corhuila.drp.payment.adapters.memory.MemoryReservations;
 import co.corhuila.drp.payment.adapters.provider.ImmediateConfirmProvider;
+import co.corhuila.drp.payment.adapters.notification.HttpNotificationEvents;
+import co.corhuila.drp.payment.adapters.reservation.HttpReservationEvents;
 import co.corhuila.drp.payment.adapters.reservation.HttpReservations;
+import co.corhuila.drp.payment.app.FanoutPublisher;
 import co.corhuila.drp.payment.adapters.security.JwksVerifier;
 import co.corhuila.drp.payment.app.Charges;
+import co.corhuila.drp.payment.app.EventPublisher;
+import co.corhuila.drp.payment.app.OutboxRelay;
 import co.corhuila.drp.payment.app.ReservationCatalog;
 import co.corhuila.drp.payment.app.TokenVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -69,6 +74,28 @@ public class PaymentConfig {
         outbox,
         Instant::now,
         () -> UUID.randomUUID().toString());
+  }
+
+  @Bean
+  EventPublisher eventPublisher(
+      ObjectMapper mapper,
+      @Value("${RESERVATION_API_URL:}") String reservationUrl,
+      @Value("${NOTIFICATION_API_URL:}") String notificationUrl,
+      @Value("${INTERNAL_EVENT_TOKEN:}") String token) {
+    if (reservationUrl == null || reservationUrl.isBlank() || token == null || token.isBlank()) {
+      return EventPublisher.NOOP;
+    }
+    EventPublisher reservation = new HttpReservationEvents(reservationUrl, token, httpClient(), mapper);
+    if (notificationUrl == null || notificationUrl.isBlank()) {
+      return reservation;
+    }
+    return new FanoutPublisher(
+        reservation, new HttpNotificationEvents(notificationUrl, token, httpClient(), mapper));
+  }
+
+  @Bean
+  OutboxRelay outboxRelay(MemoryOutbox outbox, EventPublisher publisher) {
+    return new OutboxRelay(outbox, publisher);
   }
 
   private static HttpClient httpClient() {

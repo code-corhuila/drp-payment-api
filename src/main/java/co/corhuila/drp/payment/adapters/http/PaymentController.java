@@ -6,6 +6,7 @@ import co.corhuila.drp.payment.app.CreateCommand;
 import co.corhuila.drp.payment.app.CreateResult;
 import co.corhuila.drp.payment.app.HealthCheck;
 import co.corhuila.drp.payment.app.ListFilter;
+import co.corhuila.drp.payment.app.OutboxRelay;
 import co.corhuila.drp.payment.app.PaymentPage;
 import co.corhuila.drp.payment.app.Principal;
 import co.corhuila.drp.payment.domain.PaymentState;
@@ -31,14 +32,17 @@ public final class PaymentController {
       Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
 
   private final Charges charges;
+  private final OutboxRelay relay;
   private final ObjectMapper mapper;
   private final String serviceName;
 
   public PaymentController(
       Charges charges,
+      OutboxRelay relay,
       ObjectMapper mapper,
       @Value("${SERVICE_NAME:payment-service}") String serviceName) {
     this.charges = charges;
+    this.relay = relay;
     this.mapper = mapper;
     this.serviceName = serviceName;
   }
@@ -144,6 +148,11 @@ public final class PaymentController {
                 JsonCanon.normalize(raw),
                 AuthFilter.accessToken(request),
                 CorrelationFilter.traceId(request)));
+    try {
+      relay.drain();
+    } catch (RuntimeException ignored) {
+      // Payment is already stored. The row stays unpublished for a later drain.
+    }
     HttpStatus status = got.replay() ? HttpStatus.OK : HttpStatus.CREATED;
     return ResponseEntity.status(status).body(HttpDtos.PaymentDto.from(got.payment()));
   }

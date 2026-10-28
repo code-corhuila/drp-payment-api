@@ -141,7 +141,7 @@ public final class Charges {
     }
     payments.save(new StoredPayment(pending, cmd.actor().subject()));
 
-    Payment after = settle(pending, now, cmd.correlationId());
+    Payment after = settle(pending, now, cmd.correlationId(), cmd.actor().subject());
     payments.save(new StoredPayment(after, cmd.actor().subject()));
     idempotency.put(
         cmd.actor().subject(),
@@ -151,29 +151,30 @@ public final class Charges {
     return new CreateResult(pending, false);
   }
 
-  private Payment settle(Payment pending, Instant now, String correlationId) {
+  private Payment settle(Payment pending, Instant now, String correlationId, String userId) {
     PaymentProvider.Outcome outcome = provider.charge(pending);
     if (outcome == PaymentProvider.Outcome.FAILED) {
       Payment failed = pending.fail(now);
-      outbox.append(event(failed, OutboxEvent.PAYMENT_FAILED, OutboxEvent.TOPIC_FAILED, correlationId));
+      outbox.append(event(failed, OutboxEvent.PAYMENT_FAILED, OutboxEvent.TOPIC_FAILED, correlationId, userId));
       return failed;
     }
     Payment confirmed = pending.confirm("sim-" + pending.id().substring(0, 8), now);
     outbox.append(
-        event(confirmed, OutboxEvent.PAYMENT_CONFIRMED, OutboxEvent.TOPIC_CONFIRMED, correlationId));
+        event(confirmed, OutboxEvent.PAYMENT_CONFIRMED, OutboxEvent.TOPIC_CONFIRMED, correlationId, userId));
     return confirmed;
   }
 
-  private OutboxEvent event(Payment payment, String type, String topic, String correlationId) {
+  private OutboxEvent event(Payment payment, String type, String topic, String correlationId, String userId) {
     String payload =
         """
-        {"paymentId":"%s","reservationId":"%s","amountCents":%d,"currency":"%s"}
+        {"paymentId":"%s","reservationId":"%s","amountCents":%d,"currency":"%s","userId":"%s"}
         """
             .formatted(
                 payment.id(),
                 payment.reservationId(),
                 payment.amountCents(),
-                payment.currency())
+                payment.currency(),
+                userId)
             .strip();
     return new OutboxEvent(
         ids.get(),
