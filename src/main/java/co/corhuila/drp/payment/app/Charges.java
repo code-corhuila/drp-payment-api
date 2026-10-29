@@ -147,7 +147,7 @@ public final class Charges {
         cmd.actor().subject(),
         CREATE_ROUTE,
         cmd.idempotencyKey(),
-        new IdempotencyStore.Replay(cmd.normalizedBody(), new StoredPayment(after, cmd.actor().subject())));
+        new IdempotencyStore.Replay(cmd.normalizedBody(), new StoredPayment(pending, cmd.actor().subject())));
     return new CreateResult(pending, false);
   }
 

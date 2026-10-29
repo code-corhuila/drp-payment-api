@@ -138,7 +138,7 @@ class PaymentHttpTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.state").value("CONFIRMED"));
+        .andExpect(jsonPath("$.state").value("PENDING"));
   }
 
   @Test

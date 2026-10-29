@@ -62,6 +62,7 @@ class ChargesTest {
     CreateResult replay = charges.create(cmd(MEMBER, "idem-key-01", BODY, "COP"));
     assertTrue(replay.replay());
     assertEquals(first.payment().id(), replay.payment().id());
+    assertEquals(PaymentState.PENDING, replay.payment().state());
     assertEquals(1, outbox.unpublished().size());
   }
 
@@ -129,6 +130,26 @@ class ChargesTest {
         assertThrows(
             AppException.class, () -> charges.get(new Principal(OTHER, "USER"), got.payment().id()));
     assertEquals(AppException.Kind.NOT_FOUND, ex.kind());
+  }
+
+  @Test
+  void failedProviderPublishesPaymentFailedAndLeavesRetryOpen() {
+    charges =
+        new Charges(
+            new MemoryPayments(),
+            new MemoryIdempotency(),
+            reservations,
+            pending -> PaymentProvider.Outcome.FAILED,
+            outbox,
+            () -> NOW,
+            () -> "aaaaaaaa-aaaa-4aaa-8aaa-00000000000" + seq.incrementAndGet());
+    CreateResult got = charges.create(cmd(MEMBER, "idem-key-fail", BODY, "COP"));
+    assertEquals(PaymentState.FAILED, charges.get(new Principal(MEMBER, "USER"), got.payment().id()).state());
+    assertEquals(OutboxEvent.PAYMENT_FAILED, outbox.unpublished().getFirst().eventType());
+    assertTrue(outbox.unpublished().getFirst().payloadJson().contains("\"userId\":\"" + MEMBER + "\""));
+    CreateResult retry = charges.create(cmd(MEMBER, "idem-key-retry", BODY, "COP"));
+    assertEquals(false, retry.replay());
+    assertEquals(PaymentState.PENDING, retry.payment().state());
   }
 
   @Test
