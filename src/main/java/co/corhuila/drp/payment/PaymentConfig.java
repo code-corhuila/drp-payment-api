@@ -10,9 +10,12 @@ import co.corhuila.drp.payment.adapters.reservation.HttpReservationEvents;
 import co.corhuila.drp.payment.adapters.reservation.HttpReservations;
 import co.corhuila.drp.payment.app.FanoutPublisher;
 import co.corhuila.drp.payment.adapters.security.JwksVerifier;
+import co.corhuila.drp.payment.adapters.postgres.JdbcPayments;
+import co.corhuila.drp.payment.adapters.postgres.PostgresDataSource;
 import co.corhuila.drp.payment.app.Charges;
 import co.corhuila.drp.payment.app.EventPublisher;
 import co.corhuila.drp.payment.app.OutboxRelay;
+import co.corhuila.drp.payment.app.PaymentRepository;
 import co.corhuila.drp.payment.app.ReservationCatalog;
 import co.corhuila.drp.payment.app.TokenVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,8 +58,17 @@ public class PaymentConfig {
   }
 
   @Bean
+  PaymentRepository paymentStore(MemoryPayments memory) {
+    String dsn = System.getenv("DATABASE_URL");
+    if (dsn == null || dsn.isBlank()) {
+      return memory;
+    }
+    return new JdbcPayments(PostgresDataSource.open(dsn));
+  }
+
+  @Bean
   Charges charges(
-      MemoryPayments payments,
+      PaymentRepository payments,
       MemoryIdempotency idempotency,
       MemoryReservations memoryReservations,
       MemoryOutbox outbox,
