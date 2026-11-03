@@ -122,16 +122,31 @@ public class PaymentConfig {
       ObjectMapper mapper,
       @Value("${RESERVATION_API_URL:}") String reservationUrl,
       @Value("${NOTIFICATION_API_URL:}") String notificationUrl,
-      @Value("${INTERNAL_EVENT_TOKEN:}") String token) {
-    if (reservationUrl == null || reservationUrl.isBlank() || token == null || token.isBlank()) {
+      @Value("${PAYMENT_INTERNAL_TOKEN:}") String paymentToken,
+      @Value("${NOTIFICATION_INTERNAL_TOKEN:}") String notificationToken,
+      @Value("${INTERNAL_EVENT_TOKEN:}") String fallbackToken) {
+    String toReservation = firstToken(paymentToken, fallbackToken);
+    String toNotification = firstToken(notificationToken, fallbackToken);
+    if (reservationUrl == null || reservationUrl.isBlank() || toReservation.isBlank()) {
       return EventPublisher.NOOP;
     }
-    EventPublisher reservation = new HttpReservationEvents(reservationUrl, token, httpClient(), mapper);
-    if (notificationUrl == null || notificationUrl.isBlank()) {
+    EventPublisher reservation =
+        new HttpReservationEvents(reservationUrl, toReservation, httpClient(), mapper);
+    if (notificationUrl == null || notificationUrl.isBlank() || toNotification.isBlank()) {
       return reservation;
     }
     return new FanoutPublisher(
-        reservation, new HttpNotificationEvents(notificationUrl, token, httpClient(), mapper));
+        reservation,
+        new HttpNotificationEvents(notificationUrl, toNotification, httpClient(), mapper));
+  }
+
+  private static String firstToken(String... values) {
+    for (String value : values) {
+      if (value != null && !value.isBlank()) {
+        return value.trim();
+      }
+    }
+    return "";
   }
 
   @Bean
