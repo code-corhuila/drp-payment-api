@@ -10,10 +10,12 @@ import co.corhuila.drp.payment.adapters.reservation.HttpReservationEvents;
 import co.corhuila.drp.payment.adapters.reservation.HttpReservations;
 import co.corhuila.drp.payment.app.FanoutPublisher;
 import co.corhuila.drp.payment.adapters.security.JwksVerifier;
+import co.corhuila.drp.payment.adapters.postgres.JdbcOutbox;
 import co.corhuila.drp.payment.adapters.postgres.JdbcPayments;
 import co.corhuila.drp.payment.adapters.postgres.PostgresDataSource;
 import co.corhuila.drp.payment.app.Charges;
 import co.corhuila.drp.payment.app.EventPublisher;
+import co.corhuila.drp.payment.app.Outbox;
 import co.corhuila.drp.payment.app.OutboxRelay;
 import co.corhuila.drp.payment.app.PaymentRepository;
 import co.corhuila.drp.payment.app.ReservationCatalog;
@@ -26,9 +28,25 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import javax.sql.DataSource;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 public class PaymentConfig {
+
+  private DataSource jdbc;
+
+  private DataSource jdbc() {
+    if (jdbc != null) {
+      return jdbc;
+    }
+    String dsn = System.getenv("DATABASE_URL");
+    if (dsn == null || dsn.isBlank()) {
+      return null;
+    }
+    jdbc = PostgresDataSource.open(dsn);
+    return jdbc;
+  }
 
   @Bean
   MemoryPayments memoryPayments() {
@@ -58,12 +76,23 @@ public class PaymentConfig {
   }
 
   @Bean
+  @Primary
   PaymentRepository paymentStore(MemoryPayments memory) {
-    String dsn = System.getenv("DATABASE_URL");
-    if (dsn == null || dsn.isBlank()) {
+    DataSource ds = jdbc();
+    if (ds == null) {
       return memory;
     }
-    return new JdbcPayments(PostgresDataSource.open(dsn));
+    return new JdbcPayments(ds);
+  }
+
+  @Bean
+  @Primary
+  Outbox outboxStore(MemoryOutbox memory) {
+    DataSource ds = jdbc();
+    if (ds == null) {
+      return memory;
+    }
+    return new JdbcOutbox(ds);
   }
 
   @Bean
@@ -71,7 +100,7 @@ public class PaymentConfig {
       PaymentRepository payments,
       MemoryIdempotency idempotency,
       MemoryReservations memoryReservations,
-      MemoryOutbox outbox,
+      Outbox outbox,
       ObjectMapper mapper,
       @Value("${RESERVATION_API_URL:}") String reservationUrl) {
     ReservationCatalog catalog = memoryReservations;
@@ -106,7 +135,7 @@ public class PaymentConfig {
   }
 
   @Bean
-  OutboxRelay outboxRelay(MemoryOutbox outbox, EventPublisher publisher) {
+  OutboxRelay outboxRelay(Outbox outbox, EventPublisher publisher) {
     return new OutboxRelay(outbox, publisher);
   }
 

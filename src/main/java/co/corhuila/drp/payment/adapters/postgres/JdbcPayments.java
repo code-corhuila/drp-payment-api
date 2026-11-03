@@ -40,7 +40,7 @@ public final class JdbcPayments implements PaymentRepository {
   public Optional<StoredPayment> findById(String id) {
     try (var c = ds.getConnection();
         var ps = c.prepareStatement(SELECT + " WHERE id = ?")) {
-      ps.setString(1, id);
+      ps.setObject(1, java.util.UUID.fromString(id));
       try (var rs = ps.executeQuery()) {
         if (!rs.next()) {
           return Optional.empty();
@@ -58,7 +58,7 @@ public final class JdbcPayments implements PaymentRepository {
         var ps =
             c.prepareStatement(
                 SELECT + " WHERE reservation_id = ? AND state IN ('PENDING','CONFIRMED')")) {
-      ps.setString(1, reservationId);
+      ps.setObject(1, java.util.UUID.fromString(reservationId));
       try (var rs = ps.executeQuery()) {
         if (!rs.next()) {
           return Optional.empty();
