@@ -30,8 +30,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -172,6 +174,31 @@ class PaymentHttpTest {
                 .header("Authorization", bearer(MEMBER, "USER")))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+  }
+
+  @Test
+  void foreignGetIs404Not403() throws Exception {
+    String owner = bearer(MEMBER, "USER");
+    MvcResult created =
+        mvc.perform(
+                post("/api/v1/payments")
+                    .header("Authorization", owner)
+                    .header("Idempotency-Key", "key-foreign-404")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body(RESERVATION, 5_000_000, "COP")))
+            .andExpect(status().isCreated())
+            .andReturn();
+    String paymentId =
+        new ObjectMapper().readTree(created.getResponse().getContentAsString()).get("id").asText();
+
+    String other = bearer("55555555-5555-5555-5555-555555555555", "USER");
+    mvc.perform(get("/api/v1/payments/" + paymentId).header("Authorization", other))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+    mvc.perform(get("/api/v1/payments").header("Authorization", other))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.meta.total").value(0))
+        .andExpect(jsonPath("$.data").isEmpty());
   }
 
   @Test

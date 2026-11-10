@@ -20,6 +20,14 @@ class PaymentTest {
   }
 
   @Test
+  void confirmWithoutProviderEvidenceIsRejected() {
+    Payment p = Payment.pending("p1", "r1", Money.cop(5_000_000), "idem-key-01", NOW);
+    assertThrows(DomainException.class, () -> p.confirm("  ", NOW.plusSeconds(1)));
+    assertThrows(DomainException.class, () -> p.confirm(null, NOW.plusSeconds(1)));
+    assertEquals(PaymentState.PENDING, p.state());
+  }
+
+  @Test
   void amountMustBePositive() {
     assertThrows(DomainException.class, () -> Money.cop(0));
   }
