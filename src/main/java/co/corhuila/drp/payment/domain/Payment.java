@@ -50,6 +50,9 @@ public final class Payment {
     if (state != PaymentState.PENDING) {
       throw new DomainException(DomainException.Code.INVALID_STATUS_TRANSITION, "confirm from PENDING only");
     }
+    if (providerReference == null || providerReference.isBlank()) {
+      throw new DomainException(DomainException.Code.INVALID_INPUT, "provider evidence required");
+    }
     return new Payment(id, reservationId, money, idempotencyKey, PaymentState.CONFIRMED, providerReference, createdAt, now);
   }
 

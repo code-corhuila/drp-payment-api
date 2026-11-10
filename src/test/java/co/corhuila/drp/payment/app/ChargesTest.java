@@ -1,6 +1,7 @@
 package co.corhuila.drp.payment.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,6 +55,8 @@ class ChargesTest {
     assertEquals(OutboxEvent.PAYMENT_CONFIRMED, outbox.unpublished().getFirst().eventType());
     assertTrue(outbox.unpublished().getFirst().payloadJson().contains("\"userId\":\"" + MEMBER + "\""));
     assertEquals(PaymentState.CONFIRMED, charges.get(new Principal(MEMBER, "USER"), got.payment().id()).state());
+    assertTrue(
+        charges.get(new Principal(MEMBER, "USER"), got.payment().id()).providerReference().startsWith("sim-"));
   }
 
   @Test
@@ -139,12 +142,13 @@ class ChargesTest {
             new MemoryPayments(),
             new MemoryIdempotency(),
             reservations,
-            pending -> PaymentProvider.Outcome.FAILED,
+            pending -> PaymentProvider.Result.failed(),
             outbox,
             () -> NOW,
             () -> "aaaaaaaa-aaaa-4aaa-8aaa-00000000000" + seq.incrementAndGet());
     CreateResult got = charges.create(cmd(MEMBER, "idem-key-fail", BODY, "COP"));
     assertEquals(PaymentState.FAILED, charges.get(new Principal(MEMBER, "USER"), got.payment().id()).state());
+    assertNotEquals(PaymentState.CONFIRMED, charges.get(new Principal(MEMBER, "USER"), got.payment().id()).state());
     assertEquals(OutboxEvent.PAYMENT_FAILED, outbox.unpublished().getFirst().eventType());
     assertTrue(outbox.unpublished().getFirst().payloadJson().contains("\"userId\":\"" + MEMBER + "\""));
     CreateResult retry = charges.create(cmd(MEMBER, "idem-key-retry", BODY, "COP"));

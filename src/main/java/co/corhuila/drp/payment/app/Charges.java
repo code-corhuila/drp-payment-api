@@ -152,13 +152,13 @@ public final class Charges {
   }
 
   private Payment settle(Payment pending, Instant now, String correlationId, String userId) {
-    PaymentProvider.Outcome outcome = provider.charge(pending);
-    if (outcome == PaymentProvider.Outcome.FAILED) {
+    PaymentProvider.Result result = provider.charge(pending);
+    if (result.outcome() != PaymentProvider.Outcome.CONFIRMED) {
       Payment failed = pending.fail(now);
       outbox.append(event(failed, OutboxEvent.PAYMENT_FAILED, OutboxEvent.TOPIC_FAILED, correlationId, userId));
       return failed;
     }
-    Payment confirmed = pending.confirm("sim-" + pending.id().substring(0, 8), now);
+    Payment confirmed = pending.confirm(result.providerReference(), now);
     outbox.append(
         event(confirmed, OutboxEvent.PAYMENT_CONFIRMED, OutboxEvent.TOPIC_CONFIRMED, correlationId, userId));
     return confirmed;
