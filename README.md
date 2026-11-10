@@ -9,4 +9,11 @@ mvn -B test
 mvn -B spring-boot:run
 ```
 
+Compose (infra network must exist). Do **not** pass `.env.example` as `--env-file`: that DSN is for a **host** process (`localhost`). The compose file injects `DATABASE_URL` to `postgres:5432` and hops to `reservation-api` / `notification-api` on the infra network. No AMQP (Q-001).
+
+```bash
+docker compose -f deploy/compose.yml up --build
+curl http://localhost:8084/health
+```
+
 Child of `develop` named `hu-c3-*-dev`. Promote with `cherry-pick -x`.

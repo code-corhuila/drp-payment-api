@@ -20,3 +20,5 @@ jobs:
           java-version: "21"
           cache: maven
       - run: mvn -B test
+      - name: No Postgres container in this repo
+        run: "! grep -E 'image: postgres' deploy/compose.yml Dockerfile"
